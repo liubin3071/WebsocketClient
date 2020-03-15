@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <IsPackable>false</IsPackable>
+        <LangVersion>8</LangVersion>
+        <RootNamespace>Websocket.Client</RootNamespace>
+        <Nullable>enable</Nullable>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <AssemblyName>WebsocketClient.Abstractions</AssemblyName>
+    </PropertyGroup>
+    <ItemGroup>
+        <Compile Remove="ObservablesEx.cs"/>
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Dawn.Guard" Version="1.11.0"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.2"/>
+        <PackageReference Include="System.Reactive" Version="4.3.2"/>
+        <PackageReference Include="System.Threading.Tasks.Dataflow" Version="4.11.0"/>
+    </ItemGroup>
+</Project>

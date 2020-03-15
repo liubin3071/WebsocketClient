@@ -1,0 +1,51 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net461</TargetFramework>
+        <IsPackable>false</IsPackable>
+        <RootNamespace>Websocket.Client</RootNamespace>
+        <LangVersion>8</LangVersion>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Remove="packages\**"/>
+        <Compile Remove="Reference\**"/>
+        <EmbeddedResource Remove="packages\**"/>
+        <EmbeddedResource Remove="Reference\**"/>
+        <None Remove="packages\**"/>
+        <None Remove="Reference\**"/>
+        <Compile Remove="ObservableTests.cs"/>
+        <Compile Remove="WebSocket4NetTest.cs"/>
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.5.0"/>
+        <PackageReference Include="xunit" Version="2.4.1"/>
+        <PackageReference Include="xunit.runner.visualstudio" Version="2.4.1"/>
+        <PackageReference Include="coverlet.collector" Version="1.0.1"/>
+
+        <PackageReference Include="Divergic.Logging.Xunit" Version="3.2.1"/>
+        <PackageReference Include="Shouldly" Version="3.0.2"/>
+        <PackageReference Include="System.Configuration.ConfigurationManager" Version="4.7.0"/>
+    </ItemGroup>
+
+
+    <ItemGroup>
+        <Reference Include="SuperSocket.SocketBase">
+            <HintPath>Reference\SuperSocket.SocketBase.dll</HintPath>
+        </Reference>
+        <Reference Include="SuperSocket.SocketEngine">
+            <HintPath>Reference\SuperSocket.SocketEngine.dll</HintPath>
+        </Reference>
+        <Reference Include="SuperWebSocket">
+            <HintPath>Reference\SuperWebSocket.dll</HintPath>
+        </Reference>
+    </ItemGroup>
+
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\System.Net.WebSockets.WebsocketClient\System.Net.WebSockets.WebsocketClient.csproj"/>
+        <ProjectReference Include="..\..\src\WebSocket4Net.WebsocketClient\WebSocket4Net.WebsocketClient.csproj"/>
+        <ProjectReference Include="..\..\src\WebsocketClient.Abstractions\WebsocketClient.Abstractions.csproj"/>
+    </ItemGroup>
+
+</Project>
