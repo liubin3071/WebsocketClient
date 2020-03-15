@@ -5,6 +5,18 @@
         <RootNamespace>WebSocket4Net</RootNamespace>
         <LangVersion>8</LangVersion>
         <Nullable>enable</Nullable>
+
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <PackageVersion>1.0.0-alpha</PackageVersion>
+        <Authors>liubin3071</Authors>
+        <Description>https://github.com/liubin3071/WebsocketClient</Description>
+        <PackageProjectUrl>https://github.com/liubin3071/WebsocketClient</PackageProjectUrl>
+        <PackageLicenseUrl>https://github.com/liubin3071/WebsocketClient/blob/master/LICENSE</PackageLicenseUrl>
+        <RepositoryUrl>https://github.com/liubin3071/WebsocketClient</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageTags>websocket,client,WebSocket4Net</PackageTags>
+        <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+        <Title>WebSocket4Net.WebsocketClient</Title>
     </PropertyGroup>
 
     <ItemGroup>
