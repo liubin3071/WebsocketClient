@@ -5,6 +5,7 @@
         <IsPackable>false</IsPackable>
         <RootNamespace>Websocket.Client</RootNamespace>
         <LangVersion>8</LangVersion>
+        <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <ItemGroup>
