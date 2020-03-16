@@ -130,8 +130,6 @@ namespace Websocket.Client
         public async Task OpenAsync()
         {
             _logger.LogDebug($"{nameof(OpenAsync)} entry.");
-            _autoReopenEnable = true;
-
             switch (State)
             {
                 case ReadyState.Connecting:
@@ -164,6 +162,7 @@ namespace Websocket.Client
                     throw new ArgumentOutOfRangeException();
             }
 
+            _autoReopenEnable = true;
             ActivateReopen();
             _logger.LogDebug($"{nameof(OpenAsync)} success exit.");
         }
@@ -365,12 +364,6 @@ namespace Websocket.Client
 
         private async Task TryReopen()
         {
-            if (!_autoReopenEnable || !_autoReopenOnKeepAliveTimeout && !_autoReopenOnClosed)
-            {
-                DeactivateReopen();
-                return;
-            }
-
             if (AutoReopenThrottleTimeSpan > TimeSpan.Zero)
             {
                 var diff = _lastReopenTime + AutoReopenThrottleTimeSpan - DateTimeOffset.UtcNow;
@@ -438,8 +431,15 @@ namespace Websocket.Client
                     .Interval(TimeSpan.FromSeconds(1))
                     .Subscribe(l =>
                     {
-                        _logger.LogDebug(FormatLog($"will try reopen {l}."));
-                        _ = TryReopen();
+                        if (_autoReopenEnable && (_autoReopenOnKeepAliveTimeout || _autoReopenOnClosed))
+                        {
+                            _logger.LogDebug(FormatLog($"will try reopen {l}."));
+                            _ = TryReopen();
+                        }
+                        else
+                        {
+                            DeactivateReopen();
+                        }
                     });
         }
 

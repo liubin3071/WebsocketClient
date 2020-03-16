@@ -2,8 +2,8 @@ using System;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Fleck;
 using Shouldly;
-using SuperWebSocket;
 using Websocket.Client.Events;
 using Websocket.Client.Exceptions;
 using Xunit;
@@ -19,7 +19,11 @@ namespace Websocket.Client
 
         protected abstract WebsocketClientBase CreateNewClient();
 
-        protected abstract void RaiseErrorEvent(WebsocketClientBase client, WebSocketSession session);
+        protected virtual void RaiseErrorEvent(WebsocketClientBase client, IWebSocketConnection session)
+        {
+            //closed the WebSocket connection without completing the close handshake.
+            ((WebSocketConnection) session).Socket.Dispose();
+        }
 
 
         [Fact]
@@ -56,7 +60,6 @@ namespace Websocket.Client
         public async void auto_reopen_when_alive_timeout()
         {
             //arrange
-
             using var client = CreateNewClient();
             client.AutoReopenOnKeepAliveTimeout = true;
             client.AutoReopenThrottleTimeSpan = TimeSpan.Zero;
@@ -98,7 +101,7 @@ namespace Websocket.Client
             client.Reopened += (sender, args) => reopenEvent.Set();
             //act
             await client.OpenAsync();
-            var session = await GetLastSession();
+            var session = GetLastSession();
             RaiseErrorEvent(client, session);
             errorEvent.WaitOne(1000).ShouldBeTrue();
             closedEvent.WaitOne(1000).ShouldBeTrue();
@@ -122,7 +125,7 @@ namespace Websocket.Client
             await client.OpenAsync();
 
             //act
-            var session = await GetLastSession();
+            var session = GetLastSession();
             session.Close();
             closedEvent.WaitOne(3000).ShouldBe(true);
             client.State.ShouldBe(ReadyState.Closed);
@@ -235,7 +238,7 @@ namespace Websocket.Client
             client.Closed += (sender, args) => closedEvent.Set();
             await client.OpenAsync();
             //act
-            var session = await GetLastSession();
+            var session = GetLastSession();
             RaiseErrorEvent(client, session); //assert
             errorEvent.WaitOne(1000).ShouldBeTrue();
             closedEvent.WaitOne(1000).ShouldBeTrue();
@@ -509,7 +512,7 @@ namespace Websocket.Client
             client.State.ShouldBe(ReadyState.Open);
             await Task.Delay(200);
             //act
-            var session = await GetLastSession();
+            var session = GetLastSession();
             session.Close();
             //assert
             closedEvent.WaitOne(3000).ShouldBeTrue();

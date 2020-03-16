@@ -1,4 +1,4 @@
-using SuperWebSocket;
+using Fleck;
 using WebSocket4Net;
 using WebSocket4Net.Command;
 using Xunit.Abstractions;
@@ -18,8 +18,9 @@ namespace Websocket.Client.WebSocket4Net
             return new WebsocketClient(Url, logger: Logger);
         }
 
-        protected override void RaiseErrorEvent(WebsocketClientBase client, WebSocketSession session)
+        protected override void RaiseErrorEvent(WebsocketClientBase client, IWebSocketConnection session)
         {
+            //fix: WebSocket4Net do not raise error event when server closed the WebSocket connection without completing the close handshake.
             var badRequest = new BadRequest();
             badRequest.ExecuteCommand((WebSocket) client.LiteClient.InnerClient,
                 new WebSocketCommandInfo(0x9.ToString(), ""));

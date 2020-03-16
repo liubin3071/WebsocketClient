@@ -1,4 +1,7 @@
-﻿using System.Threading;
+﻿using System;
+using System.Text;
+using System.Threading;
+using Microsoft.Extensions.Logging;
 using Shouldly;
 using Xunit;
 using Xunit.Abstractions;
@@ -157,12 +160,51 @@ namespace Websocket.Client
         }
 
         [Fact]
-        public async void received_text_test()
+        public async void receive_binary_test()
         {
             using var client = CreateNewClient();
             await client.OpenAsync(CancellationToken.None);
+            var closedEvent = new AutoResetEvent(false);
+            client.Closed += (sender, args) => closedEvent.Set();
 
-            var session = await GetLastSession();
+            var session = GetLastSession();
+
+            var messageCount = 0;
+            var currentMsg = Array.Empty<byte>();
+            var messageEvent = new AutoResetEvent(false);
+            client.MessageReceived += (sender, args) =>
+            {
+                messageCount++;
+                currentMsg = args.Bytes;
+                messageEvent.Set();
+            };
+
+            for (var i = 0; i < 10; i++)
+            {
+                TestOutputHelper.WriteLine($"test {i}......");
+                var msg = Encoding.UTF8.GetBytes($"test{i}");
+                await session.Send(msg);
+                Logger.LogDebug($"send\t\t {string.Join(' ', msg)}");
+
+                messageEvent.WaitOne(1000).ShouldBeTrue();
+                messageCount.ShouldBe(i + 1);
+                currentMsg.ShouldBe(msg);
+                Logger.LogDebug($"received\t {string.Join(' ', msg)}");
+            }
+
+            closedEvent.WaitOne(100).ShouldBeFalse();
+            client.IsOpened.ShouldBeTrue();
+        }
+
+        [Fact]
+        public async void receive_text_test()
+        {
+            using var client = CreateNewClient();
+            await client.OpenAsync(CancellationToken.None);
+            var closedEvent = new AutoResetEvent(false);
+            client.Closed += (sender, args) => closedEvent.Set();
+
+            var session = GetLastSession();
 
             var messageCount = 0;
             var currentMsg = "";
@@ -178,32 +220,44 @@ namespace Websocket.Client
             {
                 TestOutputHelper.WriteLine($"test {i}......");
                 var msg = $"test{i}";
-                session.Send(msg);
+                await session.Send(msg);
                 messageEvent.WaitOne(1000).ShouldBeTrue();
                 messageCount.ShouldBe(i + 1);
                 currentMsg.ShouldBe(msg);
             }
+
+            closedEvent.WaitOne(100).ShouldBeFalse();
+            client.IsOpened.ShouldBeTrue();
         }
 
         [Fact]
         public async void send_text_test()
         {
+            //arrange
+            using var client = CreateNewClient();
+            await client.OpenAsync(CancellationToken.None);
+            client.IsOpened.ShouldBeTrue();
+            var closedEvent = new AutoResetEvent(false);
+            client.Closed += (sender, args) => closedEvent.Set();
+            var messageEvent = new AutoResetEvent(false);
+            string? currentMsg = null;
+            client.MessageReceived += (sender, args) =>
+            {
+                currentMsg = args.Text;
+                messageEvent.Set();
+            };
             for (var i = 0; i < 10; i++)
             {
-                //arrange
-                using var client = CreateNewClient();
-                await client.OpenAsync(CancellationToken.None);
-                client.IsOpened.ShouldBeTrue();
-                var closedEvent = new AutoResetEvent(false);
-                client.Closed += (sender, args) => closedEvent.Set();
-
                 //act
                 await client.SendAsync("test");
 
                 //assert
-                closedEvent.WaitOne(100).ShouldBeFalse();
-                client.IsOpened.ShouldBeTrue();
+                messageEvent.WaitOne(100).ShouldBeTrue();
+                currentMsg.ShouldBe("test");
             }
+
+            closedEvent.WaitOne(100).ShouldBeFalse();
+            client.IsOpened.ShouldBeTrue();
         }
     }
 }

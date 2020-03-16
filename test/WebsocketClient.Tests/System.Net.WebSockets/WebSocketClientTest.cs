@@ -1,6 +1,7 @@
 ﻿using System.Net.WebSockets;
-using SuperWebSocket;
 using Xunit.Abstractions;
+
+//using SuperWebSocket;
 
 namespace Websocket.Client.System.Net.WebSockets
 {
@@ -15,11 +16,6 @@ namespace Websocket.Client.System.Net.WebSockets
         protected override WebsocketClientBase CreateNewClient()
         {
             return new WebsocketClient(Url, logger: Logger);
-        }
-
-        protected override void RaiseErrorEvent(WebsocketClientBase client, WebSocketSession session)
-        {
-            session.Close();
         }
     }
 }
