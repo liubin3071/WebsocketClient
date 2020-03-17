@@ -22,7 +22,7 @@ namespace Websocket.Client
         /// <summary>
         ///     after open by user is true; after close by user is false;
         /// </summary>
-        private bool _autoReopenEnable;
+        private readonly ReopenWatcher _reopenWatcher;
 
         private bool _autoReopenOnClosed;
         private bool _autoReopenOnKeepAliveTimeout;
@@ -33,8 +33,9 @@ namespace Websocket.Client
 
         private DateTimeOffset _lastReopenTime = DateTimeOffset.MinValue;
         private TaskCompletionSource<object?>? _openTaskSrc;
-        private IDisposable? _reopenDisposable;
 
+
+        private bool _reopening;
 
         protected WebsocketClientBase(IWebsocketLiteClient websocketLiteClient, ILogger? logger = null)
         {
@@ -52,10 +53,11 @@ namespace Websocket.Client
 
             State = ReadyState.Closed;
 
-
             LiteClient.Closed += WebsocketLiteClientOnClosed;
             LiteClient.Error += WebsocketLiteClientOnError;
             LiteClient.MessageReceived += WebsocketLiteClientOnMessageReceived;
+
+            _reopenWatcher = new ReopenWatcher(this, _logger);
         }
 
         private static TimeSpan DefaultAutoReopenThrottle => TimeSpan.FromSeconds(10);
@@ -65,11 +67,11 @@ namespace Websocket.Client
 
         public IWebsocketLiteClient LiteClient { get; }
 
-        public event EventHandler<CloseEventArgs>? Closed;
+        public virtual event EventHandler<CloseEventArgs>? Closed;
 
         public event EventHandler<CloseEventArgs>? Closing;
 
-        public event EventHandler<ErrorEventArgs>? Error;
+        public virtual event EventHandler<ErrorEventArgs>? Error;
 
         public event EventHandler<MessageEventArgs>? MessageReceived;
 
@@ -85,12 +87,12 @@ namespace Websocket.Client
             set
             {
                 _autoReopenOnClosed = value;
-                if (_autoReopenEnable)
+                if (_reopenWatcher.Enable)
                 {
                     if (!_autoReopenOnClosed && !_autoReopenOnKeepAliveTimeout)
-                        DeactivateReopen();
+                        _reopenWatcher.Stop();
                     else
-                        ActivateReopen();
+                        _reopenWatcher.Start();
                 }
             }
         }
@@ -101,12 +103,12 @@ namespace Websocket.Client
             set
             {
                 _autoReopenOnKeepAliveTimeout = value;
-                if (_autoReopenEnable)
+                if (_reopenWatcher.Enable)
                 {
                     if (!_autoReopenOnClosed && !_autoReopenOnKeepAliveTimeout)
-                        DeactivateReopen();
+                        _reopenWatcher.Stop();
                     else
-                        ActivateReopen();
+                        _reopenWatcher.Start();
                 }
             }
         }
@@ -162,16 +164,14 @@ namespace Websocket.Client
                     throw new ArgumentOutOfRangeException();
             }
 
-            _autoReopenEnable = true;
-            ActivateReopen();
+            _reopenWatcher.Enable = true;
             _logger.LogDebug($"{nameof(OpenAsync)} success exit.");
         }
 
         public async Task CloseAsync()
         {
             _logger.LogDebug($"{nameof(CloseAsync)} entry.");
-            _autoReopenEnable = false;
-            DeactivateReopen();
+            _reopenWatcher.Enable = false;
             var closeStatusCode = CloseStatusCode.Normal;
             var reason = "Normal closure";
 
@@ -212,6 +212,12 @@ namespace Websocket.Client
             _logger.LogDebug($"{nameof(CloseAsync)} exit.");
         }
 
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
         private void WebsocketLiteClientOnMessageReceived(object sender, MessageEventArgs e)
         {
             OnMessageReceived(e);
@@ -219,18 +225,23 @@ namespace Websocket.Client
 
         private void WebsocketLiteClientOnError(object sender, ErrorEventArgs e)
         {
-            OnCommunicatorError(e.GetException());
+            OnError(e);
         }
 
         private void WebsocketLiteClientOnClosed(object sender, CloseEventArgs e)
         {
-            OnCommunicatorClosed(e.CloseStatusCode, e.Reason);
+            OnClosed(e);
         }
 
-        private Task OpenAsyncInternal()
+        protected internal virtual Task OpenAsyncInternal()
         {
             var openTaskSrc = _openTaskSrc;
-            if (openTaskSrc != null) return openTaskSrc.Task;
+            if (openTaskSrc != null)
+            {
+                _logger.LogInformation("open task is running, wait...");
+                return openTaskSrc.Task;
+            }
+
             openTaskSrc = _openTaskSrc = new TaskCompletionSource<object?>();
             _logger.LogInformation(FormatLog("open starting..."));
 
@@ -266,7 +277,7 @@ namespace Websocket.Client
                 {
                     _lastReceivedTime = DateTimeOffset.UtcNow;
 
-                    ActivateReopen();
+                    //ActivateReopen();
                     _logger.LogInformation(FormatLog("open success."));
                     _openTaskSrc = null;
                     return;
@@ -326,6 +337,11 @@ namespace Websocket.Client
             return $"[ws {State} {DateTimeOffset.Now:s}] {msg}";
         }
 
+        private void OnError(ErrorEventArgs args)
+        {
+            OnError(args.GetException());
+        }
+
         private void OnError(Exception exception)
         {
             _logger.LogError(FormatLog($"{nameof(OnError)}, {exception.GetType()} {exception.Message}"), exception);
@@ -346,23 +362,25 @@ namespace Websocket.Client
             Opened?.Invoke(this, new OpenedEventArgs());
         }
 
-
-        protected virtual void OnCommunicatorClosed(CloseStatusCode? closeStatusCode, string? reason)
+        protected internal virtual async Task<bool> TryReopenAsyncInternal()
         {
-            var msg = $"{nameof(OnCommunicatorClosed)}, " +
-                      $"{nameof(CloseEventArgs.CloseStatusCode)}: {closeStatusCode}; " +
-                      $"{nameof(CloseEventArgs.Reason)}: {reason ?? "null"}.";
-            _logger.LogDebug(FormatLog(msg));
-            OnClosed(new CloseEventArgs(closeStatusCode, reason));
+            try
+            {
+                _lastReopenTime = DateTimeOffset.UtcNow;
+                await CloseAsyncInternal(CloseStatusCode.Away, "reopen.");
+                await OpenAsyncInternal();
+                OnReopened(new ReopenedEventArgs());
+            }
+            catch (Exception e)
+            {
+                var msg = $"Reopen failed, Message: {e.Message}";
+                _logger.LogError(FormatLog(msg), e);
+            }
+
+            return State == ReadyState.Open;
         }
 
-        protected virtual void OnCommunicatorError(Exception exception)
-        {
-            var msg = $"{nameof(OnCommunicatorError)}, {exception.GetType()} Message: {exception.Message}";
-            OnError(new WebsocketException(msg, exception));
-        }
-
-        private async Task TryReopen()
+        protected internal virtual async Task TryReopen()
         {
             if (AutoReopenThrottleTimeSpan > TimeSpan.Zero)
             {
@@ -370,85 +388,53 @@ namespace Websocket.Client
                 if (diff > TimeSpan.Zero)
                 {
                     _logger.LogWarning(
-                        $"last reopen at {_lastReopenTime:s}, Next attempt in {Math.Round(diff.TotalSeconds)} seconds.");
+                        $"last reopen at {_lastReopenTime:s}, Next attempt in {Math.Ceiling(diff.TotalSeconds)} seconds.");
                     return;
                 }
             }
 
-            if (_autoReopenOnClosed && !LiteClient.IsOpened)
-                try
-                {
-                    _logger.LogInformation(FormatLog("检测到当前状态异常, 将自动重新连接..."));
-                    _lastReopenTime = DateTimeOffset.UtcNow;
-                    DeactivateReopen();
-                    await CloseAsyncInternal(CloseStatusCode.Away, "状态异常, reopen.");
-                    await OpenAsyncInternal();
-                    State = ReadyState.Open;
-                    Reopened?.Invoke(this, new ReopenedEventArgs());
-                    return;
-                }
-                catch (Exception e)
-                {
-                    var msg = $"Reopen failed(state closed), {e.Message}";
-                    _logger.LogError(FormatLog(msg), e);
-                }
-                finally
-                {
-                    ActivateReopen();
-                }
-
-            if (_autoReopenOnKeepAliveTimeout && KeepAliveTimeout > TimeSpan.Zero)
+            try
             {
-                var timeout = DateTimeOffset.UtcNow - _lastReceivedTime > KeepAliveTimeout;
-                if (timeout)
-                    try
+                if (_reopening) return;
+                _reopening = true;
+                _logger.LogDebug("reopening...");
+
+
+                if (_autoReopenOnClosed)
+                {
+                    if (!LiteClient.IsOpened)
                     {
-                        _logger.LogInformation(FormatLog("检测到接收消息超时, 将自动重新连接..."));
-                        _lastReopenTime = DateTimeOffset.UtcNow;
-                        DeactivateReopen();
-                        await CloseAsyncInternal(CloseStatusCode.Away, "keep alive timeout.");
-                        await OpenAsyncInternal();
-                        State = ReadyState.Open;
-                        OnReopened(new ReopenedEventArgs());
+                        _logger.LogWarning(FormatLog("will try reopen, current state is not opened."));
+                        await TryReopenAsyncInternal();
+                        return;
                     }
-                    catch (Exception e)
+
+                    _logger.LogDebug("skip reopen, current state is opened.");
+                }
+
+                if (_autoReopenOnKeepAliveTimeout && KeepAliveTimeout > TimeSpan.Zero)
+                {
+                    var timeout = DateTimeOffset.UtcNow - _lastReceivedTime > KeepAliveTimeout;
+                    if (timeout)
                     {
-                        var msg = $"Reopen(keep live timeout) failed, {e.Message}";
-                        _logger.LogError(FormatLog(msg), e);
+                        _logger.LogWarning(FormatLog(
+                            $"will try reopen, message keep live timeout({KeepAliveTimeout:g}), LastReceivedTime: {_lastReceivedTime:s}"));
+                        await TryReopenAsyncInternal();
+                        return;
                     }
-                    finally
-                    {
-                        ActivateReopen();
-                    }
+
+                    _logger.LogDebug($"skip reopen, keep live, LastReceivedTime: {_lastReceivedTime:s}");
+                }
             }
-        }
-
-        private void ActivateReopen(bool forceReset = false)
-        {
-            if (!_autoReopenEnable) return;
-            if (_reopenDisposable == null || forceReset)
-                _reopenDisposable = Observable
-                    .Interval(TimeSpan.FromSeconds(1))
-                    .Subscribe(l =>
-                    {
-                        if (_autoReopenEnable && (_autoReopenOnKeepAliveTimeout || _autoReopenOnClosed))
-                        {
-                            _logger.LogDebug(FormatLog($"will try reopen {l}."));
-                            _ = TryReopen();
-                        }
-                        else
-                        {
-                            DeactivateReopen();
-                        }
-                    });
-        }
-
-
-        private void DeactivateReopen()
-        {
-            _logger.LogDebug(FormatLog($"{nameof(DeactivateReopen)}"));
-            _reopenDisposable?.Dispose();
-            _reopenDisposable = null;
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+            finally
+            {
+                _reopening = false;
+            }
         }
 
         private void OnReopened(ReopenedEventArgs args)
@@ -456,6 +442,15 @@ namespace Websocket.Client
             _logger.LogDebug(FormatLog($"{nameof(OnReopened)}"));
             State = ReadyState.Open;
             Reopened?.Invoke(this, args);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _reopenWatcher.Stop();
+                LiteClient.Dispose();
+            }
         }
 
 
@@ -496,40 +491,6 @@ namespace Websocket.Client
         #endregion send
 
         #region IDisposable Support
-
-        private bool _disposedValue; // 要检测冗余调用
-
-
-        // 添加此代码以正确实现可处置模式。
-        public void Dispose()
-        {
-            // 请勿更改此代码。将清理代码放入以上 Dispose(bool disposing) 中。
-            Dispose(true);
-            // TO DO: 如果在以上内容中替代了终结器，则取消注释以下行。
-            // GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposedValue)
-            {
-                if (disposing)
-                    // TO DO: 释放托管状态(托管对象)。
-                    _reopenDisposable?.Dispose();
-
-                // TO DO: 释放未托管的资源(未托管的对象)并在以下内容中替代终结器。
-                // TO DO: 将大型字段设置为 null。
-
-                _disposedValue = true;
-            }
-        }
-
-        // TO DO: 仅当以上 Dispose(bool disposing) 拥有用于释放未托管资源的代码时才替代终结器。
-        // ~WebsocketClientBase2()
-        // {
-        //   // 请勿更改此代码。将清理代码放入以上 Dispose(bool disposing) 中。
-        //   Dispose(false);
-        // }
 
         #endregion IDisposable Support
     }

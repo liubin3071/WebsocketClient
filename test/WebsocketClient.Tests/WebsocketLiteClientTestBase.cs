@@ -10,8 +10,8 @@ namespace Websocket.Client
 {
     public abstract class WebsocketLiteClientTestBase : WebsocketTestBase
     {
-        protected WebsocketLiteClientTestBase(ITestOutputHelper testOutputHelper, int port) : base(testOutputHelper,
-            port)
+        protected WebsocketLiteClientTestBase(ITestOutputHelper testOutputHelper, int port)
+            : base(testOutputHelper, port)
         {
         }
 
@@ -32,7 +32,7 @@ namespace Websocket.Client
 
             for (var i = 0; i < 10; i++)
             {
-                TestOutputHelper.WriteLine($"test {i}......");
+                Logger.LogInformation($"test {i}......");
                 await client.EnsureCloseAsync();
                 //assert
                 client.IsOpened.ShouldBeFalse();
@@ -56,7 +56,7 @@ namespace Websocket.Client
 
             for (var i = 0; i < 10; i++)
             {
-                TestOutputHelper.WriteLine($"test {i}......");
+                Logger.LogInformation($"test {i}......");
                 await client.EnsureCloseAsync();
                 //assert
                 client.IsOpened.ShouldBeFalse();
@@ -80,7 +80,7 @@ namespace Websocket.Client
 
             for (var i = 0; i < 10; i++)
             {
-                TestOutputHelper.WriteLine($"test {i}......");
+                Logger.LogInformation($"test {i}......");
 
                 //act open=>close
                 await client.OpenAsync();
@@ -109,7 +109,7 @@ namespace Websocket.Client
 
             for (var i = 0; i < 10; i++)
             {
-                TestOutputHelper.WriteLine($"test {i}......");
+                Logger.LogInformation($"test {i}......");
                 _ = client.OpenAsync();
                 await client.EnsureCloseAsync();
                 //assert
@@ -130,7 +130,7 @@ namespace Websocket.Client
 
             for (var i = 0; i < 10; i++)
             {
-                TestOutputHelper.WriteLine($"test {i}......");
+                Logger.LogInformation($"test {i}......");
                 //act
                 await client.OpenAsync(CancellationToken.None);
                 //assert
@@ -181,7 +181,7 @@ namespace Websocket.Client
 
             for (var i = 0; i < 10; i++)
             {
-                TestOutputHelper.WriteLine($"test {i}......");
+                Logger.LogInformation($"test {i}......");
                 var msg = Encoding.UTF8.GetBytes($"test{i}");
                 await session.Send(msg);
                 Logger.LogDebug($"send\t\t {string.Join(' ', msg)}");
@@ -218,7 +218,7 @@ namespace Websocket.Client
 
             for (var i = 0; i < 10; i++)
             {
-                TestOutputHelper.WriteLine($"test {i}......");
+                Logger.LogInformation($"test {i}......");
                 var msg = $"test{i}";
                 await session.Send(msg);
                 messageEvent.WaitOne(1000).ShouldBeTrue();

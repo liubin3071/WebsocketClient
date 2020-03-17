@@ -1,5 +1,4 @@
 ﻿using System;
-using Divergic.Logging.Xunit;
 using Fleck;
 using Microsoft.Extensions.Logging;
 using Xunit.Abstractions;
@@ -12,17 +11,14 @@ namespace Websocket.Client
         private readonly int _port;
         private readonly WebSocketServer _server;
 
-        protected readonly ICacheLogger Logger;
+        protected readonly ILogger Logger;
 
-        protected readonly ITestOutputHelper TestOutputHelper;
-
-        private IWebSocketConnection _webSocketConnection;
+        private IWebSocketConnection? _webSocketConnection;
 
         protected WebsocketTestBase(ITestOutputHelper testOutputHelper, int port)
         {
-            TestOutputHelper = testOutputHelper;
-            _port = port;
             Logger = testOutputHelper.BuildLogger();
+            _port = port;
 
             Url = $"{Host}:{port}";
             _server = new WebSocketServer(Url)
@@ -51,14 +47,14 @@ namespace Websocket.Client
 
         public void Dispose()
         {
-            TestOutputHelper.WriteLine("Dispose.................................................................");
+            Logger.LogWarning("Dispose.................................................................");
             Dispose(true);
             GC.SuppressFinalize(this);
         }
 
         protected IWebSocketConnection GetLastSession()
         {
-            return _webSocketConnection;
+            return _webSocketConnection ?? throw new NullReferenceException();
         }
 
 

@@ -25,37 +25,6 @@ namespace Websocket.Client
             ((WebSocketConnection) session).Socket.Dispose();
         }
 
-
-        [Fact]
-        public async void auto_reopen_throttle_test()
-        {
-            //arrange
-            using var client = CreateNewClient();
-            //client.AutoReopenOnClosed = true;
-            client.AutoReopenOnKeepAliveTimeout = true;
-            client.AutoReopenThrottleTimeSpan = TimeSpan.FromSeconds(3);
-            client.KeepAliveTimeout = TimeSpan.FromSeconds(1);
-
-            var errorEvent = new AutoResetEvent(false);
-            client.Error += (sender, args) => errorEvent.Set();
-            var closedEvent = new AutoResetEvent(false);
-            client.Closed += (sender, args) => closedEvent.Set();
-            var reopenEvent = new AutoResetEvent(false);
-            client.Reopened += (sender, args) => reopenEvent.Set();
-            //act
-            await client.OpenAsync();
-
-            //assert
-            reopenEvent.WaitOne(900).ShouldBeFalse(); // 1s timeout
-            reopenEvent.WaitOne(200).ShouldBeTrue();
-
-            reopenEvent.WaitOne(2900).ShouldBeFalse();
-            reopenEvent.WaitOne(200).ShouldBeTrue();
-
-            reopenEvent.WaitOne(2900).ShouldBeFalse();
-            reopenEvent.WaitOne(200).ShouldBeTrue();
-        }
-
         [Fact]
         public async void auto_reopen_when_alive_timeout()
         {
@@ -478,7 +447,7 @@ namespace Websocket.Client
             //arrange
 
             using var client = CreateNewClient();
-            var closingEvent = new AutoResetEvent(false);
+            //var closingEvent = new AutoResetEvent(false);
             await client.OpenAsync();
             _ = client.CloseAsync();
             //closingEvent.WaitOne(1000).ShouldBe(true);

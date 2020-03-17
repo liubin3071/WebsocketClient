@@ -9,28 +9,15 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Remove="packages\**"/>
-        <Compile Remove="Reference\**"/>
-        <EmbeddedResource Remove="packages\**"/>
-        <EmbeddedResource Remove="Reference\**"/>
-        <None Remove="packages\**"/>
-        <None Remove="Reference\**"/>
-        <Compile Remove="ObservableTests.cs"/>
-        <Compile Remove="WebSocket4NetTest.cs"/>
-        <Compile Remove="TestServer\TestserverApplicationFactory.cs"/>
-        <Compile Remove="TestServer\SimpleStartup.cs"/>
-    </ItemGroup>
-    <ItemGroup>
         <PackageReference Include="Fleck" Version="1.1.0"/>
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.5.0"/>
-        <PackageReference Include="SuperSocket.WebSocket.Server" Version="2.0.0-preview2-04"/>
         <PackageReference Include="xunit" Version="2.4.1"/>
         <PackageReference Include="xunit.runner.visualstudio" Version="2.4.1"/>
         <PackageReference Include="coverlet.collector" Version="1.0.1"/>
-
-        <PackageReference Include="Divergic.Logging.Xunit" Version="3.2.1"/>
+        <PackageReference Include="Divergic.Logging.Xunit" Version="3.2.2-beta0003"/>
         <PackageReference Include="Shouldly" Version="3.0.2"/>
-        <PackageReference Include="System.Configuration.ConfigurationManager" Version="4.7.0"/>
+        <PackageReference Include="Moq" Version="4.13.1"/>
+
     </ItemGroup>
 
 

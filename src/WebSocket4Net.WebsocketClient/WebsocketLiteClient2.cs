@@ -13,6 +13,7 @@ namespace WebSocket4Net
     {
         private readonly string _url;
         private TaskCompletionSource<bool>? _closeTaskSrc;
+        private WebSocket _innerClientInternal;
         private TaskCompletionSource<bool>? _openTaskSrc;
 
         public WebsocketLiteClient(string url, InnerClientFactory<WebSocket>? innerClientFactory = null,
@@ -20,12 +21,12 @@ namespace WebSocket4Net
             ILogger? logger = null) : base(innerClientFactory, encoding, logger)
         {
             _url = url;
-            InnerClientInternal = CreateNewInnerClient(_url);
+            _innerClientInternal = CreateNewInnerClient(_url);
         }
 
-        public override bool IsOpened => InnerClientInternal?.State == WebSocketState.Open;
+        public override bool IsOpened => _innerClientInternal.State == WebSocketState.Open;
 
-        protected sealed override WebSocket InnerClientInternal { get; set; }
+        protected override WebSocket InnerClientInternal => _innerClientInternal;
 
         protected override async Task OpenAsyncInternal(CancellationToken cancellationToken)
         {
@@ -39,7 +40,7 @@ namespace WebSocket4Net
             });
             using var register = cancellationToken.Register(cancelAction, openTaskSrc);
 
-            var client = InnerClientInternal = CreateNewInnerClient(_url);
+            var client = _innerClientInternal = CreateNewInnerClient(_url);
             try
             {
                 await Task.Factory.StartNew(() => client.Open(), cancellationToken);
@@ -135,51 +136,22 @@ namespace WebSocket4Net
 
             _openTaskSrc?.TrySetException(new Exception("打开期间收到Closed事件."));
             _closeTaskSrc?.TrySetResult(true);
-            // if (_closeTaskSrc == null)
-            // {
-            //     _logger.LogTrace($"_closeTaskSrc == null");
-            //     Closed?.Invoke(this, new CloseEventArgs(CloseStatusCode.Normal, "closed event."));
-            // }
-            // else
-            // {
-            //     if (InnerClientInternal.State != WebSocketState.Closed)
-            //         ResetInnerClient();
-            //     _closeTaskSrc?.TrySetResult(null);
-            //     _closeTaskSrc = null;
-            // }
         }
 
         private void WsClient_Error(object sender, ErrorEventArgs errorEventArgs)
         {
             _openTaskSrc?.TrySetException(new Exception("打开期间收到Error事件."));
-
-            // if (_sendTextTaskSrc != null)
-            // {
-            //     _sendTextTaskSrc?.TrySetException(errorEventArgs.Exception);
-            //     _sendTextTaskSrc = null;
-            // }
-            //
-            // if (_sendBytesTaskSrc != null)
-            // {
-            //     _sendBytesTaskSrc?.TrySetException(errorEventArgs.Exception);
-            //     _sendBytesTaskSrc = null;
-            // }
-            //
-            // Error?.Invoke(this, new ErrorEventArgs(errorEventArgs.Exception));
-
             OnError(errorEventArgs.Exception);
         }
 
         private void WsClient_MessageReceived(object sender, MessageReceivedEventArgs e)
         {
             OnMessage(e.Message);
-            //MessageReceived?.Invoke(this, new MessageEventArgs(e.Message));
         }
 
         private void WsClient_DataReceived(object sender, DataReceivedEventArgs e)
         {
             OnMessage(e.Data);
-            //MessageReceived?.Invoke(this, new MessageEventArgs(e.Data));
         }
     }
 }

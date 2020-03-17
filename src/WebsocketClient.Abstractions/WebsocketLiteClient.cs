@@ -9,7 +9,7 @@ using Websocket.Client.Exceptions;
 
 namespace Websocket.Client
 {
-    public abstract class WebsocketLiteClientBase<T> : WebsocketLiteClientBase, IWebsocketLiteClient<T> where T : class?
+    public abstract class WebsocketLiteClientBase<T> : WebsocketLiteClientBase, IWebsocketLiteClient<T> where T : class
     {
         protected readonly InnerClientFactory<T>? InnerClientFactory;
 
@@ -27,8 +27,8 @@ namespace Websocket.Client
             InnerClientFactory = innerClientFactory;
         }
 
-        // ReSharper disable once InconsistentNaming
-        protected abstract T InnerClientInternal { get; set; }
+        // ReSharper disable once MemberCanBeProtected.Global
+        protected abstract T InnerClientInternal { get; }
 
         public T GetInnerClient()
         {
@@ -118,7 +118,7 @@ namespace Websocket.Client
         public abstract bool IsOpened { get; }
         public Encoding Encoding { get; set; }
         public event EventHandler<MessageEventArgs>? MessageReceived;
-        public event EventHandler<CloseEventArgs>? Closed;
+        public virtual event EventHandler<CloseEventArgs>? Closed;
         public event EventHandler<ErrorEventArgs>? Error;
 
         public abstract Task OpenAsync(CancellationToken cancellationToken = default);

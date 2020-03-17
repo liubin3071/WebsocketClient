@@ -11,17 +11,18 @@ namespace System.Net.WebSockets
     {
         private readonly string _url;
         private bool _closeFlag;
+        private ClientWebSocket _innerClientInternal;
 
         public WebsocketLiteClient(string url, InnerClientFactory<ClientWebSocket>? innerClientFactory = null,
             Encoding? encoding = null, ILogger? logger = null) : base(innerClientFactory, encoding, logger)
         {
             _url = url;
-            InnerClientInternal = CreateNewInnerClient(url);
+            _innerClientInternal = CreateNewInnerClient(url);
         }
 
-        public override bool IsOpened => InnerClientInternal?.State == WebSocketState.Open;
+        public override bool IsOpened => _innerClientInternal?.State == WebSocketState.Open;
 
-        protected override ClientWebSocket InnerClientInternal { get; set; }
+        protected override ClientWebSocket InnerClientInternal => _innerClientInternal;
 
         protected override Task SendAsyncInternal(string text, CancellationToken cancellationToken)
         {
@@ -43,7 +44,7 @@ namespace System.Net.WebSockets
 
         protected override async Task OpenAsyncInternal(CancellationToken cancellationToken)
         {
-            var client = InnerClientInternal = CreateNewInnerClient(_url);
+            var client = _innerClientInternal = CreateNewInnerClient(_url);
 
             await client.ConnectAsync(new Uri(_url), cancellationToken);
             _ = StartListen(client);
